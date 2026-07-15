@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+
+  shooting-game:
+
+    build: .
+
+    container_name: shooting-game
+
+    expose:
+      - "5000"
+
+    restart: unless-stopped
+
+  nginx:
+
+    build: ./nginx
+
+    container_name: nginx
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - shooting-game
+
+    restart: unless-stopped
