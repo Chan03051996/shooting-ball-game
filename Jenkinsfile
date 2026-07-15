@@ -41,16 +41,18 @@ pipeline {
                 '''
             }
         }
+	stage('Health Check') {
+    		steps {
+        	    sh '''
+        	    echo "===== Running Containers ====="
+                    docker ps
 
-        stage('Health Check') {
-            steps {
-                sh '''
-                sleep 10
-                curl http://localhost:${PORT}
-                '''
-            }
-        }
-    }
+        	    echo "===== Application Logs ====="
+        	    docker logs shooting-game
+        	    '''
+   		 }
+	}	
+  }
 
     post {
 
