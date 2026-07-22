@@ -1,155 +1,107 @@
 pipeline {
-
     agent any
 
     environment {
-        IMAGE_NAME = "chan0305/shooting-game"
-        CONTAINER_NAME = "shooting-game"
-        PORT = "5000"
-    }
-
-    options {
-        timestamps()
-        disableConcurrentBuilds()
+        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_ACCESS_KEY_ID = 'test'
+        AWS_SECRET_ACCESS_KEY = 'test'
+        AWS_ENDPOINT = 'http://floci:4566'
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo "Checking out source code..."
                 checkout scm
             }
         }
 
-        stage('Build Information') {
+        stage('Verify Tools') {
             steps {
                 sh '''
-                echo "Build Number : ${BUILD_NUMBER}"
-                echo "Branch       : ${BRANCH_NAME}"
-                echo "Workspace    : ${WORKSPACE}"
+                    terraform version
+                    aws --version
+                    docker version
+                    python3 --version
+                    git --version
                 '''
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                sh 'docker build -t shooting-game:latest .'
+            }
+        }
+
+        stage('Restart Application') {
+            steps {
                 sh '''
-                docker build -t shooting-game:latest .
+                    docker compose down || true
+                    docker compose up -d --build
                 '''
             }
         }
 
-        stage('Docker Hub Login') {
+        stage('Wait for Application') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-
-                    sh '''
-                    echo "$DOCKER_PASS" | docker login \
-                    -u "$DOCKER_USER" \
-                    --password-stdin
-                    '''
-                }
-            }
-        }
-
-        stage('Tag Docker Image') {
-            steps {
-                sh '''
-                docker tag shooting-game:latest ${IMAGE_NAME}:${BUILD_NUMBER}
-
-                docker tag shooting-game:latest ${IMAGE_NAME}:latest
-                '''
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh '''
-                docker push ${IMAGE_NAME}:${BUILD_NUMBER}
-
-                docker push ${IMAGE_NAME}:latest
-                '''
-            }
-        }
-
-        stage('Stop Old Container') {
-            steps {
-                sh '''
-                docker rm -f ${CONTAINER_NAME} || true
-                '''
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                sh '''
-                docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    -p ${PORT}:5000 \
-                    ${IMAGE_NAME}:latest
-                '''
+                sh 'sleep 15'
             }
         }
 
         stage('Health Check') {
             steps {
                 sh '''
-                echo "Waiting for application..."
-
-                sleep 15
-
-                docker ps
-
-                docker logs ${CONTAINER_NAME}
+                    curl -f http://localhost:5000/health
                 '''
             }
         }
 
+        stage('Verify Scores API') {
+            steps {
+                sh '''
+                    curl -f http://localhost:5000/scores
+                '''
+            }
+        }
     }
 
     post {
 
         success {
-
-            echo "==================================="
-
-            echo "BUILD SUCCESS"
-
-            echo "Application URL: http://localhost:5000"
-
-            echo "Docker Image: ${IMAGE_NAME}:latest"
-
-            echo "==================================="
-
+            echo 'Pipeline completed successfully!'
         }
 
         failure {
-
-            echo "==================================="
-
-            echo "BUILD FAILED"
-
-            echo "Check Jenkins Console Output"
-
-            echo "==================================="
-
+            echo 'Pipeline failed.'
         }
 
         always {
-
-            sh '''
-            docker image prune -f || true
-            '''
-
-            echo "Pipeline Finished"
-
+            sh 'docker ps'
         }
-
     }
-
 }
