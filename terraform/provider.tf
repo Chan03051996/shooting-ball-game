@@ -20,7 +20,7 @@ provider "aws" {
 
   endpoints {
 
-    dynamodb = "http://localhost:4566"
+    dynamodb = "http://floci:4566"
 
   }
 
