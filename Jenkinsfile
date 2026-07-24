@@ -64,13 +64,19 @@ pipeline {
         }
 
         stage('Restart Application') {
-            steps {
-                sh '''
-                    docker compose down || true
-                    docker compose up -d --build
-                '''
-            }
-        }
+ 	   steps {
+        	sh '''
+            	docker rm -f shooting-game || true
+
+            	docker run -d \
+              	--name shooting-game \
+              	--network shooting-network \
+              	-p 5000:5000 \
+              	-e AWS_ENDPOINT=http://floci:4566 \
+              	shooting-game:latest
+        	'''
+    		}
+	}
 
         stage('Wait for Application') {
             steps {
