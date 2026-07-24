@@ -87,7 +87,7 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
-                    curl -f http://localhost:5000/health
+                    curl -f http://shooting-game:5000/health
                 '''
             }
         }
@@ -95,7 +95,7 @@ pipeline {
         stage('Verify Scores API') {
             steps {
                 sh '''
-                    curl -f http://localhost:5000/scores
+                    curl -f http://shooting-game:5000/scores
                 '''
             }
         }
